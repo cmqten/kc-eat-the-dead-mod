@@ -2,7 +2,7 @@
 No pork? No problem! Dead villagers now provide meat, which can be your temporary source early in the game, or 
 permanently if you're a damn savage.
 
-Author: https://steamcommunity.com/id/cmjten10/
+Author: cmjten10
 Mod Version: 1
 Target K&C Version: 117r5s-mods
 Date: 2020-04-26
@@ -39,7 +39,7 @@ namespace EatTheDead
             if (!settingsProxy)
             {
                 ModConfig config = ModConfigBuilder
-                    .Create("Eat The Dead", "v1", "https://steamcommunity.com/id/cmjten10/")
+                    .Create("Eat The Dead", "v1", "cmjten10")
                     .AddSlider("Eat The Dead/Meat Drop", "Amount of meat dropped by the dead", "2", 0, 50, true, 2)
                     .AddToggle("Eat The Dead/Random", "Drop a random amount between 0 and Meat Drop", "Enabled", false)
                     .Build();
