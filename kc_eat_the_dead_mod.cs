@@ -103,7 +103,7 @@ namespace EatTheDead
                     {
                         amount = random.Next(0, meatDrop + 1);
                     }
-                    GameObject meat = FreeResourceManager.inst.GetAutoStackFor(FreeResourceType.Pork, meatDrop);
+                    GameObject meat = FreeResourceManager.inst.GetAutoStackFor(FreeResourceType.Pork, amount);
                     meat.transform.position = p.transform.position.xz() + new Vector3(0f, 0.05f, 0f);
                 }
             }
