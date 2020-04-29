@@ -90,6 +90,13 @@ namespace EatTheDead
             helper.Log($"{ex.StackTrace}");
         }
 
+        private static void PlaceResourceAt(FreeResourceType resourceType, Vector3 position)
+        {
+            // Refer to Player::DestroyPerson
+            FreeResource resource = FreeResourceManager.inst.GetPrefabFor(resourceType).CreateResource(position, -1);
+            resource.Holder = null;
+        }
+
         private static void PlaceResourceStackAt(FreeResourceType resourceType, int amount, Vector3 position)
         {
             // Refer to Swineherd::OnDemolished
@@ -129,7 +136,8 @@ namespace EatTheDead
                 {
                     // -0.05f hides the meat under the cemetery, but still accessible by villagers.
                     Vector3 position = __instance.B.Center().xz() + new Vector3(0f, -0.05f, 0f);
-                    PlaceResourceStackAt(FreeResourceType.Pork, 1, position);
+                    PlaceResourceAt(FreeResourceType.Pork, position);
+                    // PlaceResourceStackAt(FreeResourceType.Pork, 1, position);
                 }
             }
         }
