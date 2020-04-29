@@ -23,8 +23,6 @@ namespace EatTheDead
     {
         public static KCModHelper helper;
         public static ModSettingsProxy settingsProxy;
-
-        private static int logId = 0;
         private static System.Random random = new System.Random();
 
         // Meat drop on death
