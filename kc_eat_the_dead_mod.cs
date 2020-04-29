@@ -7,6 +7,7 @@ Mod Version: 1
 Target K&C Version: 117r5s-mods
 Date: 2020-04-26
 */
+using Assets;
 using Harmony;
 using System;
 using System.Collections.Generic;
@@ -89,6 +90,13 @@ namespace EatTheDead
             helper.Log($"{ex.StackTrace}");
         }
 
+        private static void PlaceResourceStackAt(FreeResourceType resourceType, int amount, Vector3 position)
+        {
+            // Refer to Swineherd::OnDemolished
+            GameObject resource = FreeResourceManager.inst.GetAutoStackFor(resourceType, amount);
+            resource.transform.position = position;
+        }
+
         // Player::DestroyPerson patch for dropping meat on death.
         [HarmonyPatch(typeof(Player))]
         [HarmonyPatch("DestroyPerson")]
@@ -103,8 +111,25 @@ namespace EatTheDead
                     {
                         amount = random.Next(0, meatDrop + 1);
                     }
-                    GameObject meat = FreeResourceManager.inst.GetAutoStackFor(FreeResourceType.Pork, amount);
-                    meat.transform.position = p.transform.position.xz() + new Vector3(0f, 0.05f, 0f);
+                    // Refer to Swineherd::OnDemolished
+                    Vector3 position = p.transform.position.xz() + new Vector3(0f, 0.05f, 0f);
+                    PlaceResourceStackAt(FreeResourceType.Pork, amount, position);
+                }
+            }
+        }
+
+        // Cemetery::BuryPerson patch for placing meat under cemetery.
+        [HarmonyPatch(typeof(Cemetery))]
+        [HarmonyPatch("BuryPerson")]
+        public static class PlaceMeatUnderCemeteryPatch
+        {
+            public static void Postfix(Cemetery __instance, ref bool __result)
+            {
+                if (__result)
+                {
+                    // -0.05f hides the meat under the cemetery, but still accessible by villagers.
+                    Vector3 position = __instance.B.Center().xz() + new Vector3(0f, -0.05f, 0f);
+                    PlaceResourceStackAt(FreeResourceType.Pork, 1, position);
                 }
             }
         }
