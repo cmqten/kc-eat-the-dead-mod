@@ -23,7 +23,8 @@ namespace EatTheDead
     {
         public static KCModHelper helper;
         public static ModSettingsProxy settingsProxy;
-        private static System.Random random = new System.Random();
+
+        private static System.Random random = new System.Random(Guid.NewGuid().GetHashCode());
 
         // Meat drop on death
         private static int meatDrop = 2;
@@ -31,6 +32,7 @@ namespace EatTheDead
 
         // Grave digging
         private static bool graveDiggingEnabled = true;
+        private static int chanceOfMeatOnBurial = 100;
         private static bool removeGraveAfterDigging = true;
         private static Dictionary<Cemetery, int> gravesToRemove = new Dictionary<Cemetery, int>();
 
@@ -46,15 +48,17 @@ namespace EatTheDead
             if (!settingsProxy)
             {
                 ModConfig config = ModConfigBuilder
-                    .Create("Eat The Dead", "v1", "cmjten10")
+                    .Create("Eat The Dead", "v1.1", "cmjten10")
                     .AddSlider("Eat The Dead/Meat Drop", "Amount of meat dropped by the dead", 
                         "2", 0, 50, true, meatDrop)
-                    .AddToggle("Eat The Dead/Random Drop", "Drop a random amount between 0 and Meat Drop", 
+                    .AddToggle("Eat The Dead/Random", "Drop a random amount between 0 and \"Meat Drop\"", 
                         "Enabled", randomDrop)
                     .AddToggle("Eat The Dead/Grave Digging", "Obtain meat from cemeteries", 
                         "Enabled", graveDiggingEnabled)
-                    .AddToggle("Eat The Dead/Remove Grave After Digging", "", 
+                    .AddToggle("Eat The Dead/Remove Grave After Digging", "Remove a random grave after digging meat", 
                         "Enabled", removeGraveAfterDigging)
+                    .AddSlider("Eat The Dead/Spawn Meat on Burial Chance", "Chance of burials spawning diggable meat", 
+                        "100", 0, 100, true, chanceOfMeatOnBurial)
                     .Build();
                 ModSettingsBootstrapper.Register(config, OnProxyRegistered, OnProxyRegisterError);
             }
@@ -76,7 +80,7 @@ namespace EatTheDead
                     setting.slider.label = meatDrop.ToString();
                     proxy.UpdateSetting(setting, null, null);
                 });
-                proxy.AddSettingsChangedListener("Eat The Dead/Random Drop", (setting) =>
+                proxy.AddSettingsChangedListener("Eat The Dead/Random", (setting) =>
                 {
                     randomDrop = setting.toggle.value;
                     proxy.UpdateSetting(setting, null, null);
@@ -90,6 +94,12 @@ namespace EatTheDead
                 {
                     removeGraveAfterDigging = setting.toggle.value;
                     ResetGraveDigging();
+                    proxy.UpdateSetting(setting, null, null);
+                });
+                proxy.AddSettingsChangedListener("Eat The Dead/Spawn Meat on Burial Chance", (setting) =>
+                {
+                    chanceOfMeatOnBurial = (int)setting.slider.value;
+                    setting.slider.label = chanceOfMeatOnBurial.ToString();
                     proxy.UpdateSetting(setting, null, null);
                 });
 
@@ -178,9 +188,13 @@ namespace EatTheDead
             {
                 if (__result && graveDiggingEnabled)
                 {
-                    // -0.05f hides the meat under the cemetery, but still accessible by villagers.
-                    Vector3 position = __instance.B.Center().xz() + new Vector3(0f, -0.05f, 0f);
-                    PlaceResourceAt(FreeResourceType.Pork, position);
+                    bool burialHasMeat = random.Next(0, 100) < chanceOfMeatOnBurial;
+                    if (burialHasMeat)
+                    {
+                        // -0.05f hides the meat under the cemetery, but still accessible by villagers.
+                        Vector3 position = __instance.B.Center().xz() + new Vector3(0f, -0.05f, 0f);
+                        PlaceResourceAt(FreeResourceType.Pork, position);
+                    }
                 }
             }
         }
