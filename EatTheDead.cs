@@ -227,7 +227,7 @@ namespace EatTheDead
             }
         }
 
-        // Villager::PickupResource patch for notifying Cemetery::Tick patch to remove a grave on pickup.
+        // Villager::PickupResource patch for removing grave on meat pickup.
         [HarmonyPatch(typeof(Villager))]
         [HarmonyPatch("PickupResource")]
         [HarmonyPatch(new Type[] { typeof(FreeResource), typeof(bool) })]
