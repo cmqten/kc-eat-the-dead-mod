@@ -5,5 +5,5 @@
 No pork? No problem! Dead villagers now provide meat, which can be your temporary source early in the game, or 
 permanently if you're a damn savage.
 
-## Video
-[![](http://img.youtube.com/vi/vYsdiKQbzws/0.jpg)](http://www.youtube.com/watch?v=vYsdiKQbzws)
+## Steam Workshop
+[Eat The Dead v1.1](https://steamcommunity.com/sharedfiles/filedetails/?id=2074515957)
