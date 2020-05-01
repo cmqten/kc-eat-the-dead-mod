@@ -3,9 +3,9 @@ No pork? No problem! Dead villagers now provide meat, which can be your temporar
 permanently if you're a damn savage.
 
 Author: cmjten10
-Mod Version: 1.1
+Mod Version: 1.1.1
 Target K&C Version: 117r5s-mods
-Date: 2020-04-30
+Date: 2020-05-01
 */
 using Assets;
 using Harmony;
@@ -34,7 +34,6 @@ namespace EatTheDead
         private static bool graveDiggingEnabled = true;
         private static int chanceOfMeatOnBurial = 100;
         private static bool removeGraveAfterDigging = true;
-        private static Dictionary<Cemetery, int> gravesToRemove = new Dictionary<Cemetery, int>();
 
         void PreScriptLoad(KCModHelper __helper) 
         {
@@ -48,7 +47,7 @@ namespace EatTheDead
             if (!settingsProxy)
             {
                 ModConfig config = ModConfigBuilder
-                    .Create("Eat The Dead", "v1.1", "cmjten10")
+                    .Create("Eat The Dead", "v1.1.1", "cmjten10")
                     .AddSlider("Eat The Dead/Meat Drop", "Amount of meat dropped by the dead", 
                         "2", 0, 50, true, meatDrop)
                     .AddToggle("Eat The Dead/Random", "Drop a random amount between 0 and \"Meat Drop\"", 
@@ -93,7 +92,6 @@ namespace EatTheDead
                 proxy.AddSettingsChangedListener("Eat The Dead/Remove Grave After Digging", (setting) =>
                 {
                     removeGraveAfterDigging = setting.toggle.value;
-                    ResetGraveDigging();
                     proxy.UpdateSetting(setting, null, null);
                 });
                 proxy.AddSettingsChangedListener("Eat The Dead/Spawn Meat on Burial Chance", (setting) =>
@@ -133,14 +131,14 @@ namespace EatTheDead
 
         private static void PlaceResourceAt(FreeResourceType resourceType, Vector3 position)
         {
-            // Refer to Player::DestroyPerson
+            // Refer to Player::DestroyPerson.
             FreeResource resource = FreeResourceManager.inst.GetPrefabFor(resourceType).CreateResource(position, -1);
             resource.Holder = null;
         }
 
         private static void PlaceResourceStackAt(FreeResourceType resourceType, int amount, Vector3 position)
         {
-            // Refer to Swineherd::OnDemolished
+            // Refer to Swineherd::OnDemolished.
             GameObject resource = FreeResourceManager.inst.GetAutoStackFor(resourceType, amount);
             resource.transform.position = position;
         }
@@ -149,9 +147,39 @@ namespace EatTheDead
         // Grave Digging Utility Functions
         // =====================================================================
 
-        private static void ResetGraveDigging()
+        private static void RemoveRandomGraveFromCemetery(Cemetery cemetery)
         {
-            gravesToRemove.Clear();
+            // Harmony Traverse for accessing private fields.
+            // For reference:
+            // https://harmony.pardeike.net/articles/utilities.html
+            // https://github.com/pardeike/Harmony/issues/289
+            Traverse gravesDataTraverse = Traverse.Create(cemetery).Field("gravesData");
+            Traverse gravesRenderInstanceTraverse = Traverse.Create(cemetery).Field("gravesRenderInstance");
+            GraveData[] gravesData = gravesDataTraverse.GetValue<GraveData[]>();
+            RenderInstance[] gravesRenderInstance = gravesRenderInstanceTraverse.GetValue<RenderInstance[]>();
+
+            // Select random grave to remove.
+            int totalGraves = gravesData.Length;
+            int graveIndex = random.Next(0, totalGraves);
+            if (!gravesData[graveIndex].occupied)
+            {
+                for (graveIndex = 0; graveIndex < totalGraves; graveIndex++)
+                {
+                    if (gravesData[graveIndex].occupied)
+                    {
+                        break;
+                    }
+                }
+            }
+
+            // If graveIndex is equal to totalGraves, there are no free graves.
+            if (graveIndex < totalGraves)
+            {
+                // Refer to Cemetery::Tick.
+                gravesRenderInstance[graveIndex].Visible = false;
+                gravesData[graveIndex].occupied = false;
+                cemetery.UpdateOpenSlotStatus();
+            }
         }
 
         // =====================================================================
@@ -172,7 +200,7 @@ namespace EatTheDead
                     {
                         amount = random.Next(0, meatDrop + 1);
                     }
-                    // Refer to Swineherd::OnDemolished
+                    // Refer to Swineherd::OnDemolished.
                     Vector3 position = p.transform.position.xz() + new Vector3(0f, 0.05f, 0f);
                     PlaceResourceStackAt(FreeResourceType.Pork, amount, position);
                 }
@@ -199,11 +227,11 @@ namespace EatTheDead
             }
         }
 
-        // Villager::PickupResource patch for notifying Cemetery::Tick patch to remove a grave on pickup.
+        // Villager::PickupResource patch for removing grave on meat pickup.
         [HarmonyPatch(typeof(Villager))]
         [HarmonyPatch("PickupResource")]
         [HarmonyPatch(new Type[] { typeof(FreeResource), typeof(bool) })]
-        public static class SignalRemoveGraveOnMeatPickupPatch
+        public static class RemoveGraveOnMeatPickupPatch
         {
             public static void Prefix(Villager __instance, FreeResource resource)
             {
@@ -214,70 +242,12 @@ namespace EatTheDead
                     int z = (int)position.z;
                     if (Cemetery.IsCemetery(x, z))
                     {
-                        // Refer to Cemetery::IsCemetery
+                        // Refer to Cemetery::IsCemetery.
                         Building building = World.inst.GetCellData(x, z).StructureFindByCategory(World.cemeteryHash);
                         Cemetery cemetery = building.GetComponentInParent<Cemetery>();
-
-                        if (gravesToRemove.ContainsKey(cemetery))
-                        {
-                            gravesToRemove[cemetery]++;
-                        }
-                        else 
-                        {
-                            gravesToRemove.Add(cemetery, 1);
-                        }
+                        RemoveRandomGraveFromCemetery(cemetery);
                     }
                 }
-            }
-        }
-
-        // Cemetery::Tick patch for removing a grave if meat was picked up.
-        [HarmonyPatch(typeof(Cemetery))]
-        [HarmonyPatch("Tick")]
-        public static class RemoveGraveOnMeatPickupPatch
-        {
-            public static void Postfix(Cemetery __instance, GraveData[] ___gravesData, 
-                RenderInstance[] ___gravesRenderInstance)
-            {
-                if (gravesToRemove.ContainsKey(__instance) && gravesToRemove[__instance] > 0 && 
-                    graveDiggingEnabled && removeGraveAfterDigging)
-                {
-                    gravesToRemove[__instance]--;
-
-                    // Select random grave to remove
-                    int totalGraves = ___gravesData.Length;
-                    int graveIndex = random.Next(0, totalGraves);
-                    if (!___gravesData[graveIndex].occupied)
-                    {
-                        for (graveIndex = 0; graveIndex < totalGraves; graveIndex++)
-                        {
-                            if (___gravesData[graveIndex].occupied)
-                            {
-                                break;
-                            }
-                        }
-                    }
-
-                    // If graveIndex is equal to totalGraves, there are no free graves.
-                    if (graveIndex < totalGraves)
-                    {
-                        // Refer to Cemetery::Tick
-                        ___gravesRenderInstance[graveIndex].Visible = false;
-                        ___gravesData[graveIndex].occupied = false;
-                        __instance.UpdateOpenSlotStatus();
-                    }
-                }
-            }
-        }
-
-        // Player::Reset patch for resetting mod state when loading a different game.
-        [HarmonyPatch(typeof(Player))]
-        [HarmonyPatch("Reset")]
-        public static class ResetEatTheDead
-        {
-            static void Postfix(Player __instance) 
-            {
-                ResetGraveDigging();
             }
         }
     }
