@@ -15,51 +15,43 @@ using System.Linq;
 using System.Reflection;
 using System.Reflection.Emit;
 using UnityEngine;
+using Zat.Shared.InterModComm;
 using Zat.Shared.ModMenu.API;
+using Zat.Shared.ModMenu.Interactive;
 
 namespace EatTheDead 
 {
     public class EatTheDeadMod : MonoBehaviour 
     {
         public static KCModHelper helper;
-        public static ModSettingsProxy settingsProxy;
+
+        public static ModSettingsProxy proxy;
+        private static EatTheDeadSettings settings;
 
         private static System.Random random = new System.Random(Guid.NewGuid().GetHashCode());
 
-        // Meat drop on death
-        private static int meatDrop = 2;
-        private static bool randomDrop = false;
-
-        // Grave digging
-        private static bool graveDiggingEnabled = true;
-        private static int chanceOfMeatOnBurial = 100;
-        private static bool removeGraveAfterDigging = true;
-
-        void PreScriptLoad(KCModHelper __helper) 
+        void Preload(KCModHelper __helper) 
         {
             helper = __helper;
-            var harmony = HarmonyInstance.Create("harmony");
+            var harmony = HarmonyInstance.Create("cmjten10.EatTheDead");
             harmony.PatchAll(Assembly.GetExecutingAssembly());
         }
 
-        void OnScriptLoad(KCModHelper __helper)
+        void SceneLoaded(KCModHelper __helper)
         {
-            if (!settingsProxy)
+            if (!proxy)
             {
-                ModConfig config = ModConfigBuilder
-                    .Create("Eat The Dead", "v1.1.1", "cmjten10")
-                    .AddSlider("Eat The Dead/Meat Drop", "Amount of meat dropped by the dead", 
-                        "2", 0, 50, true, meatDrop)
-                    .AddToggle("Eat The Dead/Random", "Drop a random amount between 0 and \"Meat Drop\"", 
-                        "Enabled", randomDrop)
-                    .AddToggle("Eat The Dead/Grave Digging", "Obtain meat from cemeteries", 
-                        "Enabled", graveDiggingEnabled)
-                    .AddToggle("Eat The Dead/Remove Grave After Digging", "Remove a random grave after digging meat", 
-                        "Enabled", removeGraveAfterDigging)
-                    .AddSlider("Eat The Dead/Spawn Meat on Burial Chance", "Chance of burials spawning diggable meat", 
-                        "100", 0, 100, true, chanceOfMeatOnBurial)
-                    .Build();
-                ModSettingsBootstrapper.Register(config, OnProxyRegistered, OnProxyRegisterError);
+                var config = new InteractiveConfiguration<EatTheDeadSettings>();
+                settings = config.Settings;
+                ModSettingsBootstrapper.Register(config.ModConfig, (_proxy, saved) =>
+                {
+                    config.Install(_proxy, saved);
+                    OnProxyRegistered(_proxy, saved);
+                }, (ex) =>
+                {
+                    helper.Log($"ERROR: Failed to register proxy for Eat The Dead Mod config: {ex.Message}");
+                    helper.Log(ex.StackTrace);
+                });
             }
         }
 
@@ -67,62 +59,26 @@ namespace EatTheDead
         // Mod Menu Functions
         // =====================================================================
 
-        private void OnProxyRegistered(ModSettingsProxy proxy, SettingsEntry[] saved)
+        private void OnProxyRegistered(ModSettingsProxy _proxy, SettingsEntry[] saved)
         {
             try
             {
-                settingsProxy = proxy;
+                proxy = _proxy;
                 helper.Log("SUCCESS: Registered proxy for Eat The Dead Mod Config");
-                proxy.AddSettingsChangedListener("Eat The Dead/Meat Drop", (setting) =>
+                settings.meatDrop.OnUpdate.AddListener((setting) =>
                 {
-                    meatDrop = (int)setting.slider.value;
-                    setting.slider.label = meatDrop.ToString();
-                    proxy.UpdateSetting(setting, null, null);
+                    settings.meatDrop.Label = ((int)setting.slider.value).ToString();
                 });
-                proxy.AddSettingsChangedListener("Eat The Dead/Random", (setting) =>
+                settings.spawnMeatOnBurialChance.OnUpdate.AddListener((setting) =>
                 {
-                    randomDrop = setting.toggle.value;
-                    proxy.UpdateSetting(setting, null, null);
+                    settings.spawnMeatOnBurialChance.Label = ((int)setting.slider.value).ToString();
                 });
-                proxy.AddSettingsChangedListener("Eat The Dead/Grave Digging", (setting) =>
-                {
-                    graveDiggingEnabled = setting.toggle.value;
-                    proxy.UpdateSetting(setting, null, null);
-                });
-                proxy.AddSettingsChangedListener("Eat The Dead/Remove Grave After Digging", (setting) =>
-                {
-                    removeGraveAfterDigging = setting.toggle.value;
-                    proxy.UpdateSetting(setting, null, null);
-                });
-                proxy.AddSettingsChangedListener("Eat The Dead/Spawn Meat on Burial Chance", (setting) =>
-                {
-                    chanceOfMeatOnBurial = (int)setting.slider.value;
-                    setting.slider.label = chanceOfMeatOnBurial.ToString();
-                    proxy.UpdateSetting(setting, null, null);
-                });
-
-                // Apply saved values.
-                foreach (var setting in saved)
-                {
-                    var own = proxy.Config[setting.path];
-                    if (own != null)
-                    {
-                        own.CopyFrom(setting);
-                        proxy.UpdateSetting(own, null, null);
-                    }
-                }
             }
             catch (Exception ex)
             {
                 helper.Log($"ERROR: Failed to register proxy for Eat The Dead Mod config: {ex.Message}");
                 helper.Log(ex.StackTrace);
             }
-        }
-
-        private void OnProxyRegisterError(Exception ex)
-        {
-            helper.Log($"ERROR: Failed to register proxy for Eat The Dead Mod config: {ex.Message}");
-            helper.Log($"{ex.StackTrace}");
         }
 
         // =====================================================================
@@ -193,10 +149,11 @@ namespace EatTheDead
         {
             public static void Prefix(Villager p, bool leaveBehindBody)
             {
+                int meatDrop = (int)settings.meatDrop.Value;
                 if (leaveBehindBody && meatDrop > 0)
                 {
                     int amount = meatDrop;
-                    if (randomDrop)
+                    if (settings.randomDrop.Value)
                     {
                         amount = random.Next(0, meatDrop + 1);
                     }
@@ -214,9 +171,10 @@ namespace EatTheDead
         {
             public static void Postfix(Cemetery __instance, bool __result)
             {
+                bool graveDiggingEnabled = settings.graveDiggingEnabled.Value;
                 if (__result && graveDiggingEnabled)
                 {
-                    bool burialHasMeat = random.Next(0, 100) < chanceOfMeatOnBurial;
+                    bool burialHasMeat = random.Next(0, 100) < (int)settings.spawnMeatOnBurialChance.Value;
                     if (burialHasMeat)
                     {
                         // -0.05f hides the meat under the cemetery, but still accessible by villagers.
@@ -235,6 +193,8 @@ namespace EatTheDead
         {
             public static void Prefix(Villager __instance, FreeResource resource)
             {
+                bool graveDiggingEnabled = settings.graveDiggingEnabled.Value;
+                bool removeGraveAfterDigging = settings.removeGraveAfterDigging.Value;
                 if (resource.type == FreeResourceType.Pork && graveDiggingEnabled && removeGraveAfterDigging)
                 {
                     Vector3 position = resource.transform.position;
