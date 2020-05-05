@@ -6,4 +6,4 @@ No pork? No problem! Dead villagers now provide meat, which can be your temporar
 permanently if you're a damn savage.
 
 ## Steam Workshop
-[Eat The Dead v1.1.1](https://steamcommunity.com/sharedfiles/filedetails/?id=2074515957)
+[Eat The Dead v1.2](https://steamcommunity.com/sharedfiles/filedetails/?id=2074515957)
