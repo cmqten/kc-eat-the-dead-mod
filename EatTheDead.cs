@@ -16,7 +16,7 @@ using Zat.Shared.ModMenu.Interactive;
 
 namespace EatTheDead
 {
-    public class ModInit : MonoBehaviour 
+    public class ModMain : MonoBehaviour 
     {
         public const string authorName = "cmjten10";
         public const string modName = "Eat The Dead";
@@ -30,7 +30,7 @@ namespace EatTheDead
         void Preload(KCModHelper __helper) 
         {
             helper = __helper;
-            var harmony = HarmonyInstance.Create($"{authorName}.{modName}");
+            var harmony = HarmonyInstance.Create($"{authorName}.{modNameNoSpace}");
             harmony.PatchAll(Assembly.GetExecutingAssembly());
         }
 
@@ -43,7 +43,9 @@ namespace EatTheDead
                 ModSettingsBootstrapper.Register(config.ModConfig, (_proxy, saved) =>
                 {
                     config.Install(_proxy, saved);
-                    OnProxyRegistered(_proxy, saved);
+                    proxy = _proxy;
+                    MeatDropSettings.Setup(settings.meatDropSettings);
+                    GraveDiggingSettings.Setup(settings.graveDiggingSettings);
                 }, (ex) =>
                 {
                     helper.Log($"ERROR: Failed to register proxy for {modName} Mod config: {ex.Message}");
@@ -51,43 +53,19 @@ namespace EatTheDead
                 });
             }
         }
+    }
 
-        // =====================================================================
-        // ModMenu Setup Functions
-        // =====================================================================
+    [Mod(ModMain.modName, ModMain.version, ModMain.authorName)]
+    public class EatTheDeadSettings
+    {
+        [Setting("Eat The Dead Enabled", "Enable or disable mod. If disabled, the rest of the settings do not apply.")]
+        [Toggle(true, "")]
+        public InteractiveToggleSetting enabled { get; private set; }
 
-        private void OnProxyRegistered(ModSettingsProxy _proxy, SettingsEntry[] saved)
-        {
-            try
-            {
-                proxy = _proxy;
-                MeatDrop.SetupSettings(settings.meatDropSettings);
-                GraveDigging.SetupSettings(settings.graveDiggingSettings);
-            }
-            catch (Exception ex)
-            {
-                helper.Log($"ERROR: Failed to register proxy for {modName} Mod config: {ex.Message}");
-                helper.Log(ex.StackTrace);
-            }
-        }
+        [Category("Grave Digging")]
+        public GraveDiggingSettings graveDiggingSettings { get; private set; }
 
-        // =====================================================================
-        // Settings
-        // =====================================================================
-
-        [Mod(ModInit.modName, ModInit.version, ModInit.authorName)]
-        public class EatTheDeadSettings
-        {
-            [Setting("Eat The Dead Enabled", 
-            "Enable or disable mod. If disabled, the rest of the settings do not apply.")]
-            [Toggle(true, "")]
-            public InteractiveToggleSetting enabled { get; private set; }
-
-            [Category("Grave Digging")]
-            public GraveDigging.GraveDiggingSettings graveDiggingSettings { get; private set; }
-
-            [Category("Meat Drop")]
-            public MeatDrop.MeatDropSettings meatDropSettings { get; private set; }
-        }
+        [Category("Meat Drop")]
+        public MeatDropSettings meatDropSettings { get; private set; }
     }
 }

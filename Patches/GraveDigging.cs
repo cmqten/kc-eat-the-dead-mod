@@ -14,7 +14,6 @@ namespace EatTheDead
     public static class GraveDigging
     {
         private static System.Random random = new System.Random(Guid.NewGuid().GetHashCode());
-        private static GraveDiggingSettings settings = null;
         
         // =====================================================================
         // Patches
@@ -26,12 +25,12 @@ namespace EatTheDead
         {
             public static void Postfix(Cemetery __instance, bool __result)
             {
-                bool enabled = settings.enabled.Value && EatTheDead.ModInit.settings.enabled.Value;
+                bool enabled = ModMain.settings.enabled.Value && ModMain.settings.graveDiggingSettings.enabled.Value;
 
                 if (__result && enabled)
                 {
-                    int spawnMeatOnBurialChance = (int)settings.spawnMeatOnBurialChance.Value;
-                    bool burialHasMeat = random.Next(0, 100) < spawnMeatOnBurialChance;
+                    int meatChance = (int)ModMain.settings.graveDiggingSettings.spawnMeatOnBurialChance.Value;
+                    bool burialHasMeat = random.Next(0, 100) < meatChance;
 
                     if (burialHasMeat)
                     {
@@ -50,8 +49,8 @@ namespace EatTheDead
         {
             public static void Prefix(Villager __instance, FreeResource resource)
             {
-                bool enabled = settings.enabled.Value && EatTheDead.ModInit.settings.enabled.Value;
-                bool removeGraveAfterDigging = settings.removeGraveAfterDigging.Value;
+                bool enabled = ModMain.settings.enabled.Value && ModMain.settings.graveDiggingSettings.enabled.Value;
+                bool removeGraveAfterDigging = ModMain.settings.graveDiggingSettings.removeGraveAfterDigging.Value;
 
                 if (resource.type == FreeResourceType.Pork && enabled && removeGraveAfterDigging)
                 {
@@ -114,31 +113,26 @@ namespace EatTheDead
                 cemetery.UpdateOpenSlotStatus();
             }
         }
+    }
 
-        // =====================================================================
-        // Settings
-        // =====================================================================
+    public class GraveDiggingSettings
+    {
+        [Setting("Enabled", "Dig meat from cemeteries")]
+        [Toggle(true, "")]
+        public InteractiveToggleSetting enabled { get; private set; }
 
-        public class GraveDiggingSettings
+        [Setting("Remove Grave After Digging", "Remove a random grave after digging meat")]
+        [Toggle(true, "Enabled")]
+        public InteractiveToggleSetting removeGraveAfterDigging { get; private set; }
+
+        [Setting("Spawn Meat on Burial Chance", "Chance of burials spawning diggable meat")]
+        [Slider(0, 100, 100, "100", true)]
+        public InteractiveSliderSetting spawnMeatOnBurialChance { get; private set; }
+
+        public static void Setup(GraveDiggingSettings settings)
         {
-            [Setting("Enabled", "Dig meat from cemeteries")]
-            [Toggle(true, "")]
-            public InteractiveToggleSetting enabled { get; private set; }
-
-            [Setting("Remove Grave After Digging", "Remove a random grave after digging meat")]
-            [Toggle(true, "Enabled")]
-            public InteractiveToggleSetting removeGraveAfterDigging { get; private set; }
-
-            [Setting("Spawn Meat on Burial Chance", "Chance of burials spawning diggable meat")]
-            [Slider(0, 100, 100, "100", true)]
-            public InteractiveSliderSetting spawnMeatOnBurialChance { get; private set; }
-        }
-
-        public static void SetupSettings(GraveDiggingSettings _settings)
-        {
-            if (settings == null)
+            if (settings != null)
             {
-                settings = _settings;
                 settings.spawnMeatOnBurialChance.OnUpdate.AddListener((setting) =>
                 {
                     settings.spawnMeatOnBurialChance.Label = ((int)setting.slider.value).ToString();

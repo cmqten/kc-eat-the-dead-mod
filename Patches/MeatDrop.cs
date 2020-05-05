@@ -13,7 +13,6 @@ namespace EatTheDead
     public static class MeatDrop
     {
         private static System.Random random = new System.Random(Guid.NewGuid().GetHashCode());
-        private static MeatDropSettings settings = null;
 
         // =====================================================================
         // Patches
@@ -25,16 +24,16 @@ namespace EatTheDead
         {
             public static void Prefix(Villager p, bool leaveBehindBody)
             {
-                if (settings.enabled.Value && EatTheDead.ModInit.settings.enabled.Value)
+                bool enabled = ModMain.settings.enabled.Value && ModMain.settings.meatDropSettings.enabled.Value;
+                if (enabled)
                 {
-                    int dropAmount = (int)settings.dropAmount.Value;
-                    if (leaveBehindBody && dropAmount > 0)
+                    int amount = (int)ModMain.settings.meatDropSettings.dropAmount.Value;
+                    if (leaveBehindBody && amount > 0)
                     {
-                        int amount = dropAmount;
-
-                        if (settings.randomDrop.Value)
+                        bool randomDrop = ModMain.settings.meatDropSettings.randomDrop.Value;
+                        if (randomDrop)
                         {
-                            amount = random.Next(0, dropAmount + 1);
+                            amount = random.Next(0, amount + 1);
                         }
                         // Refer to Swineherd::OnDemolished.
                         Vector3 position = p.transform.position.xz() + new Vector3(0f, 0.05f, 0f);
@@ -54,31 +53,26 @@ namespace EatTheDead
             GameObject resource = FreeResourceManager.inst.GetAutoStackFor(resourceType, amount);
             resource.transform.position = position;
         }
+    }
 
-        // =====================================================================
-        // Settings
-        // =====================================================================
+    public class MeatDropSettings
+    {
+        [Setting("Enabled", "Drop meat on villager death")]
+        [Toggle(true, "")]
+        public InteractiveToggleSetting enabled { get; private set; }
 
-        public class MeatDropSettings
+        [Setting("Drop Amount", "Amount of meat dropped by the dead")]
+        [Slider(0, 50, 2, "2", true)]
+        public InteractiveSliderSetting dropAmount { get; private set; }
+
+        [Setting("Random Drop", "Drop a random amount between 0 and \"Drop Amount\"")]
+        [Toggle(false, "Enabled")]
+        public InteractiveToggleSetting randomDrop { get; private set; }
+
+        public static void Setup(MeatDropSettings settings)
         {
-            [Setting("Enabled", "Drop meat on villager death")]
-            [Toggle(true, "")]
-            public InteractiveToggleSetting enabled { get; private set; }
-
-            [Setting("Drop Amount", "Amount of meat dropped by the dead")]
-            [Slider(0, 50, 2, "2", true)]
-            public InteractiveSliderSetting dropAmount { get; private set; }
-
-            [Setting("Random Drop", "Drop a random amount between 0 and \"Drop Amount\"")]
-            [Toggle(false, "Enabled")]
-            public InteractiveToggleSetting randomDrop { get; private set; }
-        }
-
-        public static void SetupSettings(MeatDropSettings _settings)
-        {
-            if (settings == null)
+            if (settings != null)
             {
-                settings = _settings;
                 settings.dropAmount.OnUpdate.AddListener((setting) =>
                 {
                     settings.dropAmount.Label = ((int)setting.slider.value).ToString();
