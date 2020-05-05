@@ -7,15 +7,10 @@ Mod Version: 1.2
 Target K&C Version: 117r5s-mods
 Date: 2020-05-06
 */
-using Assets;
 using Harmony;
 using System;
-using System.Collections.Generic;
-using System.Linq;
 using System.Reflection;
-using System.Reflection.Emit;
 using UnityEngine;
-using Zat.Shared.InterModComm;
 using Zat.Shared.ModMenu.API;
 using Zat.Shared.ModMenu.Interactive;
 
@@ -29,7 +24,6 @@ namespace EatTheDead
         public const string version = "v1.2";
 
         public static KCModHelper helper;
-
         public static ModSettingsProxy proxy;
         public static EatTheDeadSettings settings;
 

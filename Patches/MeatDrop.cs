@@ -3,16 +3,9 @@ For patching meat drop on death feature.
 
 Author: cmjten10
 */
-using Assets;
 using Harmony;
 using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Reflection;
-using System.Reflection.Emit;
 using UnityEngine;
-using Zat.Shared.InterModComm;
-using Zat.Shared.ModMenu.API;
 using Zat.Shared.ModMenu.Interactive;
 
 namespace EatTheDead
